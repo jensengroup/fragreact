@@ -2,153 +2,304 @@
 
 import numpy as np
 import re
-
-# rdkit
 from rdkit import Chem
 
 
-def fragment(smiles, scheme=1):
-
+def canonical(smiles):
+    """
+    SMILES provided is canonical, so the output should be the same no matter
+    how a particular molecule is input
+    """
     m = Chem.MolFromSmiles(smiles)
-    single_bond = Chem.MolFromSmarts("[*]~[*]")
-    substructures = m.GetSubstructMatches(single_bond)
-
-    components = []
-
-    for sub in substructures:
-        bond_type = m.GetBondBetweenAtoms(sub[0], sub[1]).GetBondType()
-        symbols = [m.GetAtomWithIdx(sub[1]).GetSymbol(), m.GetAtomWithIdx(sub[1]).GetSymbol()]
-        bond_type = str(bond_type)
-
-        if bond_type == "SINGLE":
-            connector = ""
-
-        elif bond_type == "DOUBLE":
-            connector = "="
-
-        elif bond_type == "TRIPLE":
-            connector = "#"
-
-        else:
-            print "ERROR BOND TYPE"
-            quit()
-
-        component = connector.join(symbols)
-        components.append(component)
-
-    return components
+    smiles = Chem.MolToSmiles(m)
+    return smiles
 
 
-def deconstruct(smiless, ignore_hydrogen=True):
+def count_smiles(smiles_list):
 
-    if type(smiless) == type("x"):
-        smiless = [smiless]
+    smiles_dict = {}
 
-    # split multi smiles strings
-    local_smiles = []
-    for smiles in smiless:
-        local_smiles += smiles.split("\.")
+    components, components_count = np.unique(smiles_list, return_counts=True)
 
-    p = re.compile(r"[A-Z][a-z]?")
-
-    atoms = []
-    components = []
-
-    for smiles in local_smiles:
-        atoms += p.findall(smiles)
-        components += fragment(smiles)
-
-    if ignore_hydrogen:
-        atoms = [atom for atom in atoms if atom != "H"]
-
-    atoms, atoms_count = np.unique(atoms, return_counts=True)
-    components, components_count = np.unique(components, return_counts=True)
-
-    compcount = {}
     for comp, count in zip(components, components_count):
-        compcount[comp] = count
+        smiles_dict[comp] = count
 
-    return components, compcount, atoms, atoms_count
-
-
-def get_atoms(smiles, ignore_hydrogen=True, group=False):
-
-    p = re.compile(r"[A-Z][a-z]?")
-    atoms = p.findall(smiles)
-
-    if ignore_hydrogen:
-        atoms = [atom for atom in atoms if atom != "H"]
-
-    return atoms
+    return smiles_dict
 
 
-def reaction(reactants, products):
+def substract_smiles(A, B):
+    """
+    A - B = Cp + Cn
 
-    re_components, re_components_dict, re_atoms, re_atoms_count = deconstruct(reactants)
-    pr_components, pr_components_dict, pr_atoms, pr_atoms_count = deconstruct(products)
+    where Cp has positive results
+    and Cn has negative results
 
-    reactants = {}
-    products = {}
+    """
+    Cp = []
+    Cn = []
+    A = count_smiles(A)
+    B = count_smiles(B)
+    for key in np.unique(A.keys() + B.keys()):
 
-    reactants_atoms = []
-    products_atoms = []
-
-    for key in np.unique(re_components_dict.keys() + pr_components_dict.keys()):
-
-        atoms = get_atoms(key)
-
-        if key not in pr_components_dict:
-            reactants[key] = re_components_dict[key]
-            reactants_atoms += re_components_dict[key] * atoms
+        if key not in A:
+            Cn += [key] * B[key]
             continue
 
-        if key not in re_components_dict:
-            products[key] = pr_components_dict[key]
-            products_atoms += pr_components_dict[key] * atoms
+        if key not in B:
+            Cp += [key] * A[key]
             continue
 
-        sign = re_components_dict[key] - pr_components_dict[key]
+        diff = A[key] - B[key]
 
-        if sign == 0: continue
+        if diff == 0:
+            continue
+        elif diff > 0:
+            Cp += [key]*diff
+        elif diff < 0:
+            Cn += [key]*abs(diff)
 
-        if sign > 0:
-            reactants[key] = sign
-            reactants_atoms += sign * atoms
-        else:
-            products[key] = abs(sign)
-            products_atoms += abs(sign) * atoms
+    return Cp, Cn
 
-    for atom in np.unique(reactants_atoms + products_atoms):
 
-        n_reactants = reactants_atoms.count(atom)
-        n_products = products_atoms.count(atom)
+def tuning(left_side, right_side):
 
-        diff = n_reactants - n_products
+    corrected_left = []
+    corrected_right = []
+
+    left_side = count_smiles(left_side)
+    right_side = count_smiles(right_side)
+
+    for key in np.unique(left_side.keys() + right_side.keys()):
+
+        if key not in left_side:
+            print "hello"
+
+        if key not in right_side:
+            print "hello2"
+
+        diff = right_side[key] - left_side[key]
 
         if diff == 0:
             continue
 
-        elif diff < 0:
-            reactants[atom] = abs(diff)
-        else:
-            products[atom] = abs(diff)
+        elif diff > 0:
+            corrected_left += [key] * diff
 
-    return reactants, products
+        elif diff < 0:
+            corrected_right += [key] * diff
+
+    return corrected_left, corrected_right
+
+
+
+
+def get_bond_type(m, a, b):
+
+    try:
+        bond_type = str(m.GetBondBetweenAtoms(a, b).GetBondType())
+
+    except AttributeError:
+        return False
+
+    if bond_type == "SINGLE":
+        bond = ""
+
+    elif bond_type == "DOUBLE":
+        bond = "="
+
+    elif bond_type == "TRIPLE":
+        bond = "#"
+
+    else:
+        bond = False
+
+    return bond
+
+
+def get_components_scheme1(smiles):
+
+    c1 = Chem.MolFromSmarts("[*]~[*]")
+
+    m = Chem.MolFromSmiles(smiles)
+    substructures = m.GetSubstructMatches(c1)
+
+    components = []
+
+    for sub in substructures:
+
+        a, b = sub
+
+        ab = get_bond_type(m, a, b)
+
+        a = m.GetAtomWithIdx(a).GetSymbol()
+        b = m.GetAtomWithIdx(b).GetSymbol()
+
+        component = a + ab + b
+        components.append(component)
+
+    components = [canonical(component) for component in components]
+
+    return components
+
+
+def get_components_scheme2(smiles):
+
+    c2 = "[*]~[D2]~[*]"
+    c3 = "[*]~[D3](~[*])~[*]"
+    c4 = "[*]~[*](~[*])(~[*])~[*]"
+
+    c2 = Chem.MolFromSmarts(c2)
+    c3 = Chem.MolFromSmarts(c3)
+    c4 = Chem.MolFromSmarts(c4) # TODO
+
+    m = Chem.MolFromSmiles(smiles)
+    substructures = m.GetSubstructMatches(c2)
+
+    components = []
+
+    for sub in substructures:
+
+        a, b, c = sub
+
+        ab = get_bond_type(m, a, b)
+        ac = get_bond_type(m, a, c)
+        bc = get_bond_type(m, b, c)
+
+        a = m.GetAtomWithIdx(a).GetSymbol()
+        b = m.GetAtomWithIdx(b).GetSymbol()
+        c = m.GetAtomWithIdx(c).GetSymbol()
+
+        component = a + ab + b + bc + c
+        components.append(component)
+
+
+    substructures = m.GetSubstructMatches(c3)
+
+    for sub in substructures:
+
+        a, b, c, d = sub
+
+        ab = get_bond_type(m, a, b)
+        ac = get_bond_type(m, a, c)
+        ad = get_bond_type(m, a, d)
+        bc = get_bond_type(m, b, c)
+        bd = get_bond_type(m, b, d)
+        cd = get_bond_type(m, c, d)
+
+        a = m.GetAtomWithIdx(a).GetSymbol()
+        b = m.GetAtomWithIdx(b).GetSymbol()
+        c = m.GetAtomWithIdx(c).GetSymbol()
+        d = m.GetAtomWithIdx(d).GetSymbol()
+
+        component = a + ab + b + "(" + bc + c + ")" + bd + d
+        components.append(component)
+
+    components = [canonical(component) for component in components]
+
+    return components
+
+
+def decompontent_scheme2(smiles):
+    """
+    Tune the equation
+    A (bb) => aa
+
+    where
+    A (target) is big smiles
+    aa (scheme2 components) is scheme2 components
+    bb (single bonds) is additional bonds required, to have equald bonds on each side
+
+    this is done for each A which consists of len(aa) > 0
+
+    """
+
+    components = get_components_scheme2(smiles)
+
+    if len(components) == 0:
+        return [], []
+
+    bonds_leftside = get_components_scheme1(smiles)
+    bonds_rightside = []
+
+    for component in components:
+        bonds_rightside += get_components_scheme1(component)
+
+    left, right = tuning(bonds_leftside, bonds_rightside)
+
+    right += components
+
+    return left, right
+
+
+def resultant(reactants, products, scheme=1):
+
+    # Clean format
+
+    for i, reactant in enumerate(reactants):
+        reactant = reactant.split(".")
+        if len(reactant) > 1:
+            reactants[i] = reactant[0]
+            reactants += reactant[1:]
+
+    for i, product in enumerate(products):
+        product = product.split(".")
+        if len(product) > 1:
+            products[i] = product[0]
+            products += product[1:]
+
+    reactants = [canonical(reactant) for reactant in reactants]
+    products = [canonical(product) for product in products]
+
+    # TODO Add different schemes
+
+    reactants_leftside = []
+    reactants_rightside = []
+    products_leftside = []
+    products_rightside = []
+
+    reactants_missing = []
+    products_missing = []
+
+    for reactant in reactants:
+        left, right = decompontent_scheme2(reactant)
+
+        if len(left) == 0 and len(right) == 0:
+            reactants_missing += [reactant]
+
+        reactants_leftside += left
+        reactants_rightside += right
+
+    for product in products:
+        left, right = decompontent_scheme2(product)
+
+        if len(left) == 0 and len(right) == 0:
+            products_missing += [product]
+
+        products_leftside += left
+        products_rightside += right
+
+
+    left_positive, left_negative = substract_smiles(products_leftside, reactants_leftside)
+    right_positive, right_negative = substract_smiles(products_rightside, reactants_rightside)
+
+    left = left_positive + right_negative + reactants_missing
+    right = right_positive + left_negative + products_missing
+
+    left, right = substract_smiles(left, right)
+
+    return left, right
+
 
 
 if __name__ == "__main__":
 
     import argparse
 
-    description = """
-
-For example
+    description = """Example:
 fragmentreaction -r "C1=CC=CC1" "C=C" -p "C1=C[C@H]2C[C@@H]1CC2"
+fragmentreaction -f filename.csv"""
 
-    """
-
-    epilog = """
-    """
+    epilog = """ """
 
     parser = argparse.ArgumentParser(
                     usage='%(prog)s [options]',
@@ -158,46 +309,18 @@ fragmentreaction -r "C1=CC=CC1" "C=C" -p "C1=C[C@H]2C[C@@H]1CC2"
 
     parser.add_argument('-s', '--scheme', type=int, help='Level of fragmentation', metavar='int')
 
-    parser.add_argument('-r', '--reactants', nargs='+', type=str, help='Reactants of the reaction', metavar='rect')
-    parser.add_argument('-p', '--products', nargs='+', type=str, help='Products of the reaction', metavar='prod')
+    parser.add_argument('-r', '--reactants', nargs='+', type=str, help='Reactants of the reaction', metavar='SMILES')
+    parser.add_argument('-p', '--products', nargs='+', type=str, help='Products of the reaction', metavar='SMILES')
 
     parser.add_argument('-f', '--filename', type=str, help='File with reaction smiles', metavar='file')
 
     args = parser.parse_args()
 
-    # if args.reactants == None or args.products == None:
-    #     print "No enough arguments"
-    #     print
-    #     print parser.print_help()
-    #     quit()
-
-
     if args.reactants and args.products:
-        print reaction(args.reactants, args.products)
 
-    if args.filename:
-        with open(args.filename, 'r') as f:
-            for line in f:
-                line = line.split()
-                if len(line) == 0: continue
+        # TODO test
+        # get C6H8 for both sides to test
 
-                name = line[0]
-                reactants = line[1]
-                products = line[2]
-
-                cr, cp = reaction(reactants, products)
-                out = ""
-                out += name
-                for r in cr:
-                    out += " " + str(cr[r]) + "*" + r
-
-                out += " ->"
-                for p in cp:
-                    out += " " + str(cp[p]) + "*" + p
-
-                print out
-
-
-
+        print resultant(args.reactants, args.products, scheme=2)
 
 
