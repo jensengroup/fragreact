@@ -3,6 +3,15 @@
 import numpy as np
 import re
 from rdkit import Chem
+from rdkit.Chem import AllChem, Draw
+
+
+def save_reaction(reactants, products, filename):
+    rxn = ".".join(reactants) + ">>"+".".join(products)
+    rxn = AllChem.ReactionFromSmarts(rxn)
+    img = Draw.ReactionToImage(rxn, subImgSize=(200, 200))
+    img.save(filename)
+    return
 
 
 def canonical(smiles):
@@ -389,6 +398,7 @@ fragmentreaction -f filename.csv"""
                     epilog=epilog)
 
     parser.add_argument('-s', '--scheme', type=int, help='Level of fragmentation', metavar='int', default=1)
+    parser.add_argument('-i', '--image', action='store_true', help='Save image of reaction')
 
     parser.add_argument('-r', '--reactants', nargs='+', type=str, help='Reactants of the reaction', metavar='SMILES')
     parser.add_argument('-p', '--products', nargs='+', type=str, help='Products of the reaction', metavar='SMILES')
@@ -409,7 +419,25 @@ fragmentreaction -f filename.csv"""
         reactants = [canonical(smiles) for smiles in reactants]
         products = [canonical(smiles) for smiles in products]
 
+        ratoms = []
+        for smiles in reactants:
+            ratoms += get_atoms(smiles)
+
+        patoms = []
+        for smiles in products:
+            patoms += get_atoms(smiles)
+
+        ratoms.sort()
+        patoms.sort()
+
+        if ratoms != patoms:
+            quit("No. of atoms on reaction not equal to product.")
+
+        if args.image:
+            save_reaction(reactants, products, "reaction-out.png")
+
         left, right = resultant(reactants, products, scheme=args.scheme)
+
         print left, ">>", right
 
 
@@ -424,6 +452,24 @@ fragmentreaction -f filename.csv"""
                 products = line[2].split(".")
 
                 reactants = [canonical(smiles) for smiles in reactants]
+                products = [canonical(smiles) for smiles in products]
+
+                ratoms = []
+                for smiles in reactants:
+                    ratoms += get_atoms(smiles)
+
+                patoms = []
+                for smiles in products:
+                    patoms += get_atoms(smiles)
+
+                ratoms.sort()
+                patoms.sort()
+
+                if ratoms != patoms:
+                    quit("No. of atoms on reaction not equal to product.")
+
+                if args.image:
+                    save_reaction(reactants, products, "reaction-"+name+'.png')
 
                 left, right = resultant(reactants, products, scheme=args.scheme)
 
