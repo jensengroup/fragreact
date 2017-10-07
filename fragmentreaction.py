@@ -78,9 +78,11 @@ def tuning(left_side, right_side):
 
         if key not in left_side:
             print "hello"
+            quit()
 
         if key not in right_side:
             print "hello2"
+            quit()
 
         diff = right_side[key] - left_side[key]
 
@@ -172,20 +174,16 @@ def get_components_scheme2(smiles, kekulize=True):
 
     components = []
 
-    print smiles
-
     for sub in substructures:
 
         a, b, c = sub
 
         ab = get_bond_type(m, a, b)
-        ac = get_bond_type(m, a, c)
         bc = get_bond_type(m, b, c)
 
         a = m.GetAtomWithIdx(a).GetSymbol()
         b = m.GetAtomWithIdx(b).GetSymbol()
         c = m.GetAtomWithIdx(c).GetSymbol()
-
 
         component = a + ab + b + bc + c
         components.append(component)
@@ -197,11 +195,8 @@ def get_components_scheme2(smiles, kekulize=True):
         a, b, c, d = sub
 
         ab = get_bond_type(m, a, b)
-        ac = get_bond_type(m, a, c)
-        ad = get_bond_type(m, a, d)
         bc = get_bond_type(m, b, c)
         bd = get_bond_type(m, b, d)
-        cd = get_bond_type(m, c, d)
 
         a = m.GetAtomWithIdx(a).GetSymbol()
         b = m.GetAtomWithIdx(b).GetSymbol()
@@ -210,6 +205,31 @@ def get_components_scheme2(smiles, kekulize=True):
 
         component = a + ab + b + "(" + bc + c + ")" + bd + d
         components.append(component)
+
+    substructures = m.GetSubstructMatches(c4)
+
+    for sub in substructures:
+
+        a, b, c, d, e = sub
+
+        ab = get_bond_type(m, a, b)
+        bc = get_bond_type(m, b, c)
+        bd = get_bond_type(m, b, d)
+        be = get_bond_type(m, b, e)
+
+        a = m.GetAtomWithIdx(a).GetSymbol()
+        b = m.GetAtomWithIdx(b).GetSymbol()
+        c = m.GetAtomWithIdx(c).GetSymbol()
+        d = m.GetAtomWithIdx(d).GetSymbol()
+        e = m.GetAtomWithIdx(d).GetSymbol()
+
+        component = a + ab + b
+        component += "(" + bc + c + ")"
+        component += "(" + bd + d + ")"
+        component += be + e
+
+        components.append(component)
+
 
     components = [canonical(component) for component in components]
 
@@ -249,12 +269,10 @@ def decompontent_scheme2(smiles):
 
 
 def resultant(reactants, products, scheme=1):
+    """
+    assummed that smiles lists are both split(".") and canonical at this point
 
-    # Clean format
-
-
-    reactants = [canonical(reactant) for reactant in reactants]
-    products = [canonical(product) for product in products]
+    """
 
     # TODO Add different schemes
 
@@ -356,8 +374,6 @@ fragmentreaction -f filename.csv"""
                 products = line[2].split(".")
 
                 reactants = [kekulize(smiles) for smiles in reactants]
-
-                print reactants
 
                 left, right = resultant(reactants, products)
 
