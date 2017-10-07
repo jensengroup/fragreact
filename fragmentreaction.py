@@ -14,11 +14,13 @@ def canonical(smiles):
     smiles = Chem.MolToSmiles(m)
     return smiles
 
+
 def kekulize(smiles):
     m = Chem.MolFromSmiles(smiles)
     Chem.Kekulize(m)
     smiles = Chem.MolToSmiles(m, kekuleSmiles=True)
     return smiles
+
 
 def count_smiles(smiles_list):
 
@@ -98,8 +100,6 @@ def tuning(left_side, right_side):
     return corrected_left, corrected_right
 
 
-
-
 def get_bond_type(m, a, b):
 
     try:
@@ -123,6 +123,19 @@ def get_bond_type(m, a, b):
         bond = False
 
     return bond
+
+
+def get_atoms(smiles, ignore_hydrogen=True):
+
+    smiles = kekulize(smiles)
+
+    p = re.compile(r"[A-Z][a-z]?")
+    atoms = p.findall(smiles)
+
+    if ignore_hydrogen:
+        atoms = [atom for atom in atoms if atom != "H"]
+
+    return atoms
 
 
 def get_components_scheme1(smiles):
@@ -236,6 +249,38 @@ def get_components_scheme2(smiles, kekulize=True):
     return components
 
 
+def decompontent_scheme1(smiles):
+    """
+    Tune the equation
+    A (bb) => aa
+
+    where
+    A (target) is big smiles
+    aa (scheme1 components) is scheme2 components
+    bb (atoms) is additional bonds required, to have equald bonds on each side
+
+    this is done for each A which consists of len(aa) > 0
+
+    """
+
+    components = get_components_scheme1(smiles)
+
+    if len(components) == 0:
+        return [], []
+
+    bonds_leftside = get_atoms(smiles)
+    bonds_rightside = []
+
+    for component in components:
+        bonds_rightside += get_atoms(component)
+
+    left, right = tuning(bonds_leftside, bonds_rightside)
+
+    right += components
+
+    return left, right
+
+
 def decompontent_scheme2(smiles):
     """
     Tune the equation
@@ -274,8 +319,6 @@ def resultant(reactants, products, scheme=1):
 
     """
 
-    # TODO Add different schemes
-
     reactants_leftside = []
     reactants_rightside = []
     products_leftside = []
@@ -284,8 +327,13 @@ def resultant(reactants, products, scheme=1):
     reactants_missing = []
     products_missing = []
 
+    if scheme == 1:
+        decompontent_scheme = decompontent_scheme1
+    elif scheme == 2:
+        decompontent_scheme = decompontent_scheme2
+
     for reactant in reactants:
-        left, right = decompontent_scheme2(reactant)
+        left, right = decompontent_scheme(reactant)
 
         if len(left) == 0 and len(right) == 0:
             reactants_missing += [reactant]
@@ -294,14 +342,13 @@ def resultant(reactants, products, scheme=1):
         reactants_rightside += right
 
     for product in products:
-        left, right = decompontent_scheme2(product)
+        left, right = decompontent_scheme(product)
 
         if len(left) == 0 and len(right) == 0:
             products_missing += [product]
 
         products_leftside += left
         products_rightside += right
-
 
     left_positive, left_negative = substract_smiles(products_leftside, reactants_leftside)
     right_positive, right_negative = substract_smiles(products_rightside, reactants_rightside)
@@ -312,6 +359,7 @@ def resultant(reactants, products, scheme=1):
     left, right = substract_smiles(left, right)
 
     return left, right
+
 
 def split_smiles(smiles_list):
 
@@ -340,7 +388,7 @@ fragmentreaction -f filename.csv"""
                     formatter_class=argparse.RawDescriptionHelpFormatter,
                     epilog=epilog)
 
-    parser.add_argument('-s', '--scheme', type=int, help='Level of fragmentation', metavar='int')
+    parser.add_argument('-s', '--scheme', type=int, help='Level of fragmentation', metavar='int', default=1)
 
     parser.add_argument('-r', '--reactants', nargs='+', type=str, help='Reactants of the reaction', metavar='SMILES')
     parser.add_argument('-p', '--products', nargs='+', type=str, help='Products of the reaction', metavar='SMILES')
@@ -361,7 +409,8 @@ fragmentreaction -f filename.csv"""
         reactants = [canonical(smiles) for smiles in reactants]
         products = [canonical(smiles) for smiles in products]
 
-        print resultant(reactants, products, scheme=args.scheme)
+        left, right = resultant(reactants, products, scheme=args.scheme)
+        print left, ">>", right
 
 
     if args.filename:
@@ -379,6 +428,5 @@ fragmentreaction -f filename.csv"""
                 left, right = resultant(reactants, products, scheme=args.scheme)
 
                 print name, count_smiles(left), ">>", count_smiles(right)
-
 
 
