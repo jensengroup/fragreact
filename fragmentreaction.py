@@ -14,6 +14,11 @@ def canonical(smiles):
     smiles = Chem.MolToSmiles(m)
     return smiles
 
+def kekulize(smiles):
+    m = Chem.MolFromSmiles(smiles)
+    Chem.Kekulize(m)
+    smiles = Chem.MolToSmiles(m, kekuleSmiles=True)
+    return smiles
 
 def count_smiles(smiles_list):
 
@@ -101,6 +106,8 @@ def get_bond_type(m, a, b):
     except AttributeError:
         return False
 
+    # TODO sometimes bond_type is aromatic
+
     if bond_type == "SINGLE":
         bond = ""
 
@@ -121,6 +128,10 @@ def get_components_scheme1(smiles):
     c1 = Chem.MolFromSmarts("[*]~[*]")
 
     m = Chem.MolFromSmiles(smiles)
+
+    if kekulize:
+        Chem.Kekulize(m)
+
     substructures = m.GetSubstructMatches(c1)
 
     components = []
@@ -142,7 +153,7 @@ def get_components_scheme1(smiles):
     return components
 
 
-def get_components_scheme2(smiles):
+def get_components_scheme2(smiles, kekulize=True):
 
     c2 = "[*]~[D2]~[*]"
     c3 = "[*]~[D3](~[*])~[*]"
@@ -153,9 +164,15 @@ def get_components_scheme2(smiles):
     c4 = Chem.MolFromSmarts(c4) # TODO
 
     m = Chem.MolFromSmiles(smiles)
+
+    if kekulize:
+        Chem.Kekulize(m)
+
     substructures = m.GetSubstructMatches(c2)
 
     components = []
+
+    print smiles
 
     for sub in substructures:
 
@@ -169,9 +186,9 @@ def get_components_scheme2(smiles):
         b = m.GetAtomWithIdx(b).GetSymbol()
         c = m.GetAtomWithIdx(c).GetSymbol()
 
+
         component = a + ab + b + bc + c
         components.append(component)
-
 
     substructures = m.GetSubstructMatches(c3)
 
@@ -235,17 +252,6 @@ def resultant(reactants, products, scheme=1):
 
     # Clean format
 
-    for i, reactant in enumerate(reactants):
-        reactant = reactant.split(".")
-        if len(reactant) > 1:
-            reactants[i] = reactant[0]
-            reactants += reactant[1:]
-
-    for i, product in enumerate(products):
-        product = product.split(".")
-        if len(product) > 1:
-            products[i] = product[0]
-            products += product[1:]
 
     reactants = [canonical(reactant) for reactant in reactants]
     products = [canonical(product) for product in products]
@@ -289,6 +295,15 @@ def resultant(reactants, products, scheme=1):
 
     return left, right
 
+def split_smiles(smiles_list):
+
+    for i, smiles in enumerate(smiles_list):
+        smiles = smiles.split(".")
+        if len(smiles) > 1:
+            smiles_list[i] = smiles[0]
+            smiles_list += smiles[1:]
+
+    return smiles_list
 
 
 if __name__ == "__main__":
@@ -321,6 +336,32 @@ fragmentreaction -f filename.csv"""
         # TODO test
         # get C6H8 for both sides to test
 
-        print resultant(args.reactants, args.products, scheme=2)
+        reactants = split_smiles(args.reactants)
+        products = split_smiles(args.products)
+
+        reactants = [kekulize(smiles) for smiles in reactants]
+        products = [kekulize(smiles) for smiles in products]
+
+        print resultant(reactants, products, scheme=2)
+
+
+    if args.filename:
+        with open(args.filename, 'r') as f:
+            for line in f:
+                line = line.split()
+                if len(line) == 0: continue
+
+                name = line[0]
+                reactants = line[1].split(".")
+                products = line[2].split(".")
+
+                reactants = [kekulize(smiles) for smiles in reactants]
+
+                print reactants
+
+                left, right = resultant(reactants, products)
+
+                print name, count_smiles(left), ">>", count_smiles(right)
+
 
 
