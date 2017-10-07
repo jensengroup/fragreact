@@ -349,18 +349,19 @@ fragmentreaction -f filename.csv"""
 
     args = parser.parse_args()
 
-    if args.reactants and args.products:
 
-        # TODO test
-        # get C6H8 for both sides to test
+    # TODO test
+    # get C6H8 for both sides to test
+
+    if args.reactants and args.products:
 
         reactants = split_smiles(args.reactants)
         products = split_smiles(args.products)
 
-        reactants = [kekulize(smiles) for smiles in reactants]
-        products = [kekulize(smiles) for smiles in products]
+        reactants = [canonical(smiles) for smiles in reactants]
+        products = [canonical(smiles) for smiles in products]
 
-        print resultant(reactants, products, scheme=2)
+        print resultant(reactants, products, scheme=args.scheme)
 
 
     if args.filename:
@@ -373,9 +374,9 @@ fragmentreaction -f filename.csv"""
                 reactants = line[1].split(".")
                 products = line[2].split(".")
 
-                reactants = [kekulize(smiles) for smiles in reactants]
+                reactants = [canonical(smiles) for smiles in reactants]
 
-                left, right = resultant(reactants, products)
+                left, right = resultant(reactants, products, scheme=args.scheme)
 
                 print name, count_smiles(left), ">>", count_smiles(right)
 
