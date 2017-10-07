@@ -111,13 +111,15 @@ def tuning(left_side, right_side):
 
 def get_bond_type(m, a, b):
 
+    # NOTE
+    # If m is not kekulized then bonds can be AROMATIC
+    # which is a problem for the component schemes
+
     try:
         bond_type = str(m.GetBondBetweenAtoms(a, b).GetBondType())
 
     except AttributeError:
         return False
-
-    # TODO sometimes bond_type is aromatic
 
     if bond_type == "SINGLE":
         bond = ""
@@ -185,7 +187,7 @@ def get_components_scheme2(smiles, kekulize=True):
 
     c2 = Chem.MolFromSmarts(c2)
     c3 = Chem.MolFromSmarts(c3)
-    c4 = Chem.MolFromSmarts(c4) # TODO
+    c4 = Chem.MolFromSmarts(c4)
 
     m = Chem.MolFromSmiles(smiles)
 
@@ -251,7 +253,6 @@ def get_components_scheme2(smiles, kekulize=True):
         component += be + e
 
         components.append(component)
-
 
     components = [canonical(component) for component in components]
 
@@ -407,10 +408,6 @@ fragmentreaction -f filename.csv"""
 
     args = parser.parse_args()
 
-
-    # TODO test
-    # get C6H8 for both sides to test
-
     if args.reactants and args.products:
 
         reactants = split_smiles(args.reactants)
@@ -437,6 +434,9 @@ fragmentreaction -f filename.csv"""
             save_reaction(reactants, products, "reaction-out.png")
 
         left, right = resultant(reactants, products, scheme=args.scheme)
+
+        if args.image:
+            save_reaction(left, right, "reaction-out-s"+str(args.scheme)+".png")
 
         print left, ">>", right
 
@@ -473,6 +473,8 @@ fragmentreaction -f filename.csv"""
 
                 left, right = resultant(reactants, products, scheme=args.scheme)
 
-                print name, count_smiles(left), ">>", count_smiles(right)
+                if args.image:
+                    save_reaction(left, right, "reaction-"+name+"-s"+str(args.scheme)+".png")
 
+                print name, count_smiles(left), ">>", count_smiles(right)
 
