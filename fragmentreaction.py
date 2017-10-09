@@ -1,16 +1,45 @@
 #!/home/charnley/opt/anaconda/envs/my-rdkit-env/bin/python
 
+from __future__ import print_function
+
 import numpy as np
 import re
 from rdkit import Chem
 from rdkit.Chem import AllChem, Draw
-
 
 def save_reaction(reactants, products, filename):
     rxn = ".".join(reactants) + ">>"+".".join(products)
     rxn = AllChem.ReactionFromSmarts(rxn)
     img = Draw.ReactionToImage(rxn, subImgSize=(200, 200))
     img.save(filename)
+    return
+
+
+def print_smiles(smiles_list):
+
+    smiles_dict = count_smiles(smiles_list)
+    keys = smiles_dict.keys()
+    keys.sort()
+
+    out = []
+
+    for key in keys:
+        out += [str(smiles_dict[key]) + " " + key]
+
+    return " ".join(out)
+
+
+def print_reaction(reactants, products, human=False):
+
+    if not human:
+        print(">>".join([".".join(left), ".".join(right)]))
+
+    else:
+        reactants = print_smiles(reactants)
+        products = print_smiles(products)
+
+        print(reactants, ">>", products)
+
     return
 
 
@@ -88,11 +117,11 @@ def tuning(left_side, right_side):
     for key in np.unique(left_side.keys() + right_side.keys()):
 
         if key not in left_side:
-            print "hello"
+            print("hello")
             quit()
 
         if key not in right_side:
-            print "hello2"
+            print("hello2")
             quit()
 
         diff = right_side[key] - left_side[key]
@@ -245,7 +274,7 @@ def get_components_scheme2(smiles, kekulize=True):
         b = m.GetAtomWithIdx(b).GetSymbol()
         c = m.GetAtomWithIdx(c).GetSymbol()
         d = m.GetAtomWithIdx(d).GetSymbol()
-        e = m.GetAtomWithIdx(d).GetSymbol()
+        e = m.GetAtomWithIdx(e).GetSymbol()
 
         component = a + ab + b
         component += "(" + bc + c + ")"
@@ -399,7 +428,7 @@ def fragreact(reactants, products, scheme, save_image=False, name="out"):
     patoms.sort()
 
     if ratoms != patoms:
-        print name, "atom mismatch:", count_smiles(ratoms), ">>", count_smiles(patoms)
+        print(name, "atom mismatch:", count_smiles(ratoms), ">>", count_smiles(patoms))
         quit()
 
     if save_image:
@@ -431,6 +460,7 @@ fragmentreaction -f filename.csv"""
 
     parser.add_argument('-s', '--scheme', type=int, help='Level of fragmentation', metavar='int', default=1)
     parser.add_argument('-i', '--image', action='store_true', help='Save image of reaction')
+    parser.add_argument('-u', '--human', action='store_true', help='Human readable output')
 
     parser.add_argument('-r', '--reactants', nargs='+', type=str, help='Reactants of the reaction', metavar='SMILES')
     parser.add_argument('-p', '--products', nargs='+', type=str, help='Products of the reaction', metavar='SMILES')
@@ -447,14 +477,14 @@ fragmentreaction -f filename.csv"""
         products = reaction[1].split(".")
 
         left, right = fragreact(reactants, products, args.scheme, save_image=args.image)
-        print ">>".join([left, right])
+        print_reaction(left, right, human=args.human)
 
     if args.reactants and args.products:
         reactants = split_smiles(args.reactants)
         products = split_smiles(args.products)
 
         left, right = fragreact(reactants, products, args.scheme, save_image=args.image)
-        print ">>".join([left, right])
+        print_reaction(left, right, human=args.human)
 
     if args.filename:
         with open(args.filename, 'r') as f:
@@ -467,5 +497,6 @@ fragmentreaction -f filename.csv"""
                 products = line[2].split(".")
 
                 left, right = fragreact(reactants, products, args.scheme, save_image=args.image, name=name)
-                print name, count_smiles(left), ">>", count_smiles(right)
+                print(name, end=" ")
+                print_reaction(left, right, human=args.human)
 
