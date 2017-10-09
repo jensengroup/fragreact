@@ -382,6 +382,37 @@ def split_smiles(smiles_list):
     return smiles_list
 
 
+def fragreact(reactants, products, scheme, save_image=False, name="out"):
+
+    reactants = [canonical(smiles) for smiles in reactants]
+    products = [canonical(smiles) for smiles in products]
+
+    ratoms = []
+    for smiles in reactants:
+        ratoms += get_atoms(smiles)
+
+    patoms = []
+    for smiles in products:
+        patoms += get_atoms(smiles)
+
+    ratoms.sort()
+    patoms.sort()
+
+    if ratoms != patoms:
+        print name, "atom mismatch:", count_smiles(ratoms), ">>", count_smiles(patoms)
+        quit()
+
+    if save_image:
+        save_reaction(reactants, products, "reaction-"+name+".png")
+
+    left, right = resultant(reactants, products, scheme=scheme)
+
+    if save_image:
+        save_reaction(left, right, "reaction-out-s"+str(scheme)+".png")
+
+    return left, right
+
+
 if __name__ == "__main__":
 
     import argparse
@@ -406,40 +437,24 @@ fragmentreaction -f filename.csv"""
 
     parser.add_argument('-f', '--filename', type=str, help='File with reaction smiles', metavar='file')
 
+    parser.add_argument('-n', '--reaction', type=str, help='Reactants and products in SMILES reaction format', metavar='SMILES')
+
     args = parser.parse_args()
 
-    if args.reactants and args.products:
+    if args.reaction:
+        reaction = args.reaction.split(">>")
+        reactants = reaction[0].split(".")
+        products = reaction[1].split(".")
 
+        left, right = fragreact(reactants, products, args.scheme, save_image=args.image)
+        print ">>".join([left, right])
+
+    if args.reactants and args.products:
         reactants = split_smiles(args.reactants)
         products = split_smiles(args.products)
 
-        reactants = [canonical(smiles) for smiles in reactants]
-        products = [canonical(smiles) for smiles in products]
-
-        ratoms = []
-        for smiles in reactants:
-            ratoms += get_atoms(smiles)
-
-        patoms = []
-        for smiles in products:
-            patoms += get_atoms(smiles)
-
-        ratoms.sort()
-        patoms.sort()
-
-        if ratoms != patoms:
-            quit("No. of atoms on reaction not equal to product.")
-
-        if args.image:
-            save_reaction(reactants, products, "reaction-out.png")
-
-        left, right = resultant(reactants, products, scheme=args.scheme)
-
-        if args.image:
-            save_reaction(left, right, "reaction-out-s"+str(args.scheme)+".png")
-
-        print left, ">>", right
-
+        left, right = fragreact(reactants, products, args.scheme, save_image=args.image)
+        print ">>".join([left, right])
 
     if args.filename:
         with open(args.filename, 'r') as f:
@@ -451,30 +466,6 @@ fragmentreaction -f filename.csv"""
                 reactants = line[1].split(".")
                 products = line[2].split(".")
 
-                reactants = [canonical(smiles) for smiles in reactants]
-                products = [canonical(smiles) for smiles in products]
-
-                ratoms = []
-                for smiles in reactants:
-                    ratoms += get_atoms(smiles)
-
-                patoms = []
-                for smiles in products:
-                    patoms += get_atoms(smiles)
-
-                ratoms.sort()
-                patoms.sort()
-
-                if ratoms != patoms:
-                    quit("No. of atoms on reaction not equal to product.")
-
-                if args.image:
-                    save_reaction(reactants, products, "reaction-"+name+'.png')
-
-                left, right = resultant(reactants, products, scheme=args.scheme)
-
-                if args.image:
-                    save_reaction(left, right, "reaction-"+name+"-s"+str(args.scheme)+".png")
-
+                left, right = fragreact(reactants, products, args.scheme, save_image=args.image, name=name)
                 print name, count_smiles(left), ">>", count_smiles(right)
 
