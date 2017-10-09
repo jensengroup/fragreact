@@ -491,10 +491,14 @@ fragmentreaction -f filename.csv"""
             for line in f:
                 line = line.split()
                 if len(line) == 0: continue
-
                 name = line[0]
-                reactants = line[1].split(".")
-                products = line[2].split(".")
+                if ">>" in line[1]:
+                    reaction = line[1].split(">>")
+                    reactants = reaction[0].split(".")
+                    products = reaction[1].split(".")
+                else:
+                    reactants = line[1].split(".")
+                    products = line[2].split(".")
 
                 left, right = fragreact(reactants, products, args.scheme, save_image=args.image, name=name)
                 print(name, end=" ")
