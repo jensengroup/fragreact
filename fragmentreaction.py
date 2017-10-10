@@ -535,6 +535,10 @@ fragmentreaction -f filename.csv"""
                     name = line[0]
 
                     reaction = line[1].split(">>")
+
+                    if len(reaction)>2:
+                        print(name, "too many >>")
+
                     reactants = reaction[0].split(".")
                     products = reaction[1].split(".")
 
