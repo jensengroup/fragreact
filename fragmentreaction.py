@@ -400,13 +400,25 @@ def resultant(reactants, products, scheme=1):
     return left, right
 
 
-def split_smiles(smiles_list):
+def split_smiles(smiles_list, num_sep=""):
+    """
+    number seperator num_sep
+    """
 
     for i, smiles in enumerate(smiles_list):
         smiles = smiles.split(".")
         if len(smiles) > 1:
             smiles_list[i] = smiles[0]
             smiles_list += smiles[1:]
+
+    if num_sep != "":
+        for i, smiles in enumerate(smiles_list):
+            if num_sep in smiles:
+                num, smiles = smiles.split(num_sep)
+                num = int(num)
+
+                smiles_list[i] = smiles
+                smiles_list += [smiles]*(num-1)
 
     return smiles_list
 
@@ -466,6 +478,7 @@ fragmentreaction -f filename.csv"""
     parser.add_argument('-p', '--products', nargs='+', type=str, help='Products of the reaction', metavar='SMILES')
 
     parser.add_argument('-f', '--filename', type=str, help='File with reaction smiles', metavar='file')
+    parser.add_argument('-e', '--exam', type=str, help='Test reaction are equal to reference file', metavar='file')
 
     parser.add_argument('-n', '--reaction', type=str, help='Reactants and products in SMILES reaction format', metavar='SMILES')
 
@@ -487,6 +500,9 @@ fragmentreaction -f filename.csv"""
         print_reaction(left, right, human=args.human)
 
     if args.filename:
+
+        reactions = {}
+
         with open(args.filename, 'r') as f:
             for line in f:
                 line = line.split()
@@ -503,4 +519,35 @@ fragmentreaction -f filename.csv"""
                 left, right = fragreact(reactants, products, args.scheme, save_image=args.image, name=name)
                 print(name, end=" ")
                 print_reaction(left, right, human=args.human)
+
+                left.sort()
+                right.sort()
+                reactions[name] = [left, right]
+
+
+        if args.exam:
+            print()
+
+            with open(args.exam, 'r') as f:
+                for line in f:
+                    line = line.split()
+                    if len(line) == 0: continue
+                    name = line[0]
+
+                    reaction = line[1].split(">>")
+                    reactants = reaction[0].split(".")
+                    products = reaction[1].split(".")
+
+                    reactants = split_smiles(reactants, num_sep="$")
+                    products = split_smiles(products, num_sep="$")
+
+                    reactants = [canonical(smiles) for smiles in reactants]
+                    products = [canonical(smiles) for smiles in products]
+
+                    reactants.sort()
+                    products.sort()
+
+                    print(name, "reactant", substract_smiles(reactants, reactions[name][0]))
+                    print(name, "products", substract_smiles(products, reactions[name][1]))
+
 
