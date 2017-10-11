@@ -178,10 +178,70 @@ def get_atoms(smiles, ignore_hydrogen=True):
     return atoms
 
 
-def get_components_scheme1(smiles):
+def get_components(smiles, smart, kekulize=True):
 
-    c1 = Chem.MolFromSmarts("[*]~[*]")
+    m = Chem.MolFromSmiles(smiles)
+    smart = Chem.MolFromSmarts(smart)
 
+    if kekulize:
+        Chem.Kekulize(m)
+
+    substructures = m.GetSubstructMatches(smart)
+
+    components = []
+
+    for sub in substructures:
+
+        component = Chem.MolFragmentToSmiles(m, atomsToUse=sub,
+                                    isomericSmiles=True,
+                                    kekuleSmiles=True,
+                                    canonical=True)
+
+        mc = Chem.MolFromSmiles(component)
+
+        n_atoms = mc.GetNumAtoms()
+        n_bonds = len(mc.GetBonds())
+
+        if n_atoms <= n_bonds:
+            # break some bonds
+            print(n_atoms, n_bonds)
+
+        # charge = Chem.GetFormalCharge(mc)
+        #
+        # if not charge == 0:
+        #     # NOTE
+        #     # Lots of lots of if case down this road
+        #
+        #     n_atoms = mc.GetNumAtoms()
+        #
+        #     for i in range(n_atoms):
+        #
+        #         atom = mc.GetAtomWithIdx(i)
+        #         charge = atom.GetFormalCharge()
+        #
+        #         if not charge == 0:
+        #             atom.SetFormalCharge(0)
+
+        component = Chem.MolToSmiles(mc)
+
+        component = component.replace("1", "")
+
+        component = canonical(component)
+        components += [component]
+
+    return components
+
+
+def get_components_scheme1(smiles, kekulize=True):
+
+    c1 = "[*]~[*]"
+
+    if "+" in smiles or "-" in smiles:
+        pass
+    else:
+        return get_components(smiles, c1)
+
+    c1 = Chem.MolFromSmarts(c1)
     m = Chem.MolFromSmiles(smiles)
 
     if kekulize:
@@ -213,6 +273,15 @@ def get_components_scheme2(smiles, kekulize=True):
     c2 = "[*]~[D2]~[*]"
     c3 = "[*]~[D3](~[*])~[*]"
     c4 = "[*]~[*](~[*])(~[*])~[*]"
+
+    # if "+" in smiles or "-" in smiles:
+    #     pass
+    # else:
+    components = []
+    components += get_components(smiles, c2)
+    components += get_components(smiles, c3)
+    components += get_components(smiles, c4)
+    return components
 
     c2 = Chem.MolFromSmarts(c2)
     c3 = Chem.MolFromSmarts(c3)
@@ -474,6 +543,8 @@ fragmentreaction -f filename.csv"""
     parser.add_argument('-i', '--image', action='store_true', help='Save image of reaction')
     parser.add_argument('-u', '--human', action='store_true', help='Human readable output')
 
+    parser.add_argument('-x', '--decomponent', nargs='+', type=str, help='Decompenent single one SMILES', metavar='SMILES')
+
     parser.add_argument('-r', '--reactants', nargs='+', type=str, help='Reactants of the reaction', metavar='SMILES')
     parser.add_argument('-p', '--products', nargs='+', type=str, help='Products of the reaction', metavar='SMILES')
 
@@ -483,6 +554,37 @@ fragmentreaction -f filename.csv"""
     parser.add_argument('-n', '--reaction', type=str, help='Reactants and products in SMILES reaction format', metavar='SMILES')
 
     args = parser.parse_args()
+
+    if args.decomponent:
+        smiles_list = args.decomponent
+        smiles_list = split_smiles(smiles_list)
+        smiles_list = [canonical(smiles) for smiles in smiles_list]
+
+        if args.scheme == 1:
+            decompontent_scheme = decompontent_scheme1
+        elif args.scheme == 2:
+            decompontent_scheme = decompontent_scheme2
+
+        smiles_missing = []
+        smiles_right = []
+        smiles_left = []
+
+        for smiles in smiles_list:
+            left, right = decompontent_scheme(smiles)
+
+            if len(left) == 0 and len(right) == 0:
+                smiles_missing += [smiles]
+
+            smiles_left += left
+            smiles_right += right
+
+        print("fragments:   ", " ".join(smiles_list))
+        print("no fragments:", " ".join(smiles_missing))
+        print("right:       ", " ".join(smiles_right))
+        print("left:        ", " ".join(smiles_left))
+
+        quit()
+
 
     if args.reaction:
         reaction = args.reaction.split(">>")
