@@ -5,7 +5,8 @@ from __future__ import print_function
 import numpy as np
 import re
 from rdkit import Chem
-from rdkit.Chem import AllChem, Draw
+from rdkit.Chem import AllChem
+from rdkit.Chem import Draw
 
 def save_reaction(reactants, products, filename):
     rxn = ".".join(reactants) + ">>"+".".join(products)
@@ -204,6 +205,8 @@ def get_components(smiles, smart, kekulize=True):
 
         if n_atoms <= n_bonds:
             # break some bonds
+            # mw.RemoveBond(0,1)
+            # mw.AddBond(6,7,Chem.BondType.SINGLE)
             print(n_atoms, n_bonds)
 
         # charge = Chem.GetFormalCharge(mc)
@@ -225,6 +228,7 @@ def get_components(smiles, smart, kekulize=True):
         component = Chem.MolToSmiles(mc)
 
         component = component.replace("1", "")
+        component = component.replace("2", "")
 
         component = canonical(component)
         components += [component]
@@ -542,6 +546,7 @@ fragmentreaction -f filename.csv"""
     parser.add_argument('-s', '--scheme', type=int, help='Level of fragmentation', metavar='int', default=1)
     parser.add_argument('-i', '--image', action='store_true', help='Save image of reaction')
     parser.add_argument('-u', '--human', action='store_true', help='Human readable output')
+    parser.add_argument('-d', '--database', action='store_true', help='Save all components and print out list')
 
     parser.add_argument('-x', '--decomponent', nargs='+', type=str, help='Decompenent single one SMILES', metavar='SMILES')
 
@@ -630,6 +635,8 @@ fragmentreaction -f filename.csv"""
         if args.exam:
             print()
 
+            smiles_db = []
+
             with open(args.exam, 'r') as f:
                 for line in f:
                     line = line.split()
@@ -653,7 +660,19 @@ fragmentreaction -f filename.csv"""
                     reactants.sort()
                     products.sort()
 
+                    smiles_db += reactants
+                    smiles_db += products
+                    smiles_db += reactions[name][0]
+                    smiles_db += reactions[name][1]
+
                     print(name, "reactant", substract_smiles(reactants, reactions[name][0]))
                     print(name, "products", substract_smiles(products, reactions[name][1]))
+
+            if args.database:
+
+                print()
+                for smiles in np.unique(smiles_db):
+                    print(smiles)
+
 
 
