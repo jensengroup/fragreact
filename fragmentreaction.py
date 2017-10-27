@@ -16,7 +16,7 @@ def save_reaction(reactants, products, filename):
     return
 
 
-def print_smiles(smiles_list):
+def print_smiles(smiles_list, human=False):
 
     smiles_dict = count_smiles(smiles_list)
     keys = smiles_dict.keys()
@@ -199,15 +199,34 @@ def get_components(smiles, smart, kekulize=True):
                                     canonical=True)
 
         mc = Chem.MolFromSmiles(component)
-
         n_atoms = mc.GetNumAtoms()
         n_bonds = len(mc.GetBonds())
 
         if n_atoms <= n_bonds:
-            # break some bonds
-            # mw.RemoveBond(0,1)
-            # mw.AddBond(6,7,Chem.BondType.SINGLE)
-            print(n_atoms, n_bonds)
+
+            mw = Chem.RWMol(m)
+
+            if len(sub) == 3:
+                mw.RemoveBond(sub[0], sub[-1])
+
+            elif len(sub) == 4 or len(sub) == 5:
+                for i in range(0, n_atoms):
+                    for j in range(i+1, n_atoms):
+                        if i == 1 or j == 1: continue
+                        mw.RemoveBond(sub[i], sub[j])
+
+            component = Chem.MolFragmentToSmiles(mw, atomsToUse=sub,
+                                    isomericSmiles=True,
+                                    kekuleSmiles=True,
+                                    canonical=True)
+
+            # print(sub, Chem.MolToSmiles(mc), component)
+
+            if "1" in component:
+                quit("Error connectivity")
+
+        else:
+            component = Chem.MolToSmiles(mc)
 
         # charge = Chem.GetFormalCharge(mc)
         #
@@ -224,11 +243,6 @@ def get_components(smiles, smart, kekulize=True):
         #
         #         if not charge == 0:
         #             atom.SetFormalCharge(0)
-
-        component = Chem.MolToSmiles(mc)
-
-        component = component.replace("1", "")
-        component = component.replace("2", "")
 
         component = canonical(component)
         components += [component]
