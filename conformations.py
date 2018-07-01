@@ -1,5 +1,6 @@
 
 import numpy as np
+import hashlib
 from rdkit import Chem
 from rdkit.Chem import rdMolDescriptors
 from rdkit.Chem import AllChem
@@ -11,6 +12,11 @@ def read_components(filename):
     for line in f:
         smiles_list.append(line.strip())
     return smiles_list
+
+
+def smiles2hash(smiles):
+    molstr = hashlib.md5(smiles.encode('utf-8')).hexdigest()
+    return molstr
 
 
 def get_conformations(smiles, max_conf=20):
@@ -50,7 +56,9 @@ def main():
                     epilog=epilog)
 
     parser.add_argument('-f', '--filename', type=str, help='Components list', metavar='file')
-    parser.add_argument('-p', '--prefix', type=str, help='String prefix on the conformations', metavar='str')
+    parser.add_argument('-o', '--folder', type=str, default="", help='Output folder', metavar='str')
+    parser.add_argument('-p', '--prefix', type=str, default="", help='String prefix on the conformations', metavar='str')
+    parser.add_argument('-m', '--md5', action="store_true", help='Use MD5 of the SMILES string, instead of id')
 
     args = parser.parse_args()
 
@@ -58,18 +66,31 @@ def main():
         parser.print_help()
         sys.exit(1)
 
+    foldername = args.folder
+
+    if foldername != "":
+        if foldername[-1] != "/":
+            foldername += "/"
+
 
     smiles_list = read_components(args.filename)
 
     for j, smiles in enumerate(smiles_list):
         m_list = get_conformations(smiles)
 
+        molname = args.prefix
+
+        if args.md5:
+            molname += smiles2hash(smiles)
+        else:
+            molname += str(j)
+
         for k, m in enumerate(m_list):
 
-            name = args.prefix + "_".join([str(j), str(k)])
+            name = molname + "_" + str(k)
             print name, smiles
 
-            writer = Chem.SDWriter(name+".sdf")
+            writer = Chem.SDWriter(foldername + name + ".sdf")
             writer.write(m)
 
     return
