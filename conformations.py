@@ -1,6 +1,7 @@
 
 import numpy as np
 import hashlib
+import os
 from rdkit import Chem
 from rdkit.Chem import rdMolDescriptors
 from rdkit.Chem import AllChem
@@ -84,6 +85,10 @@ def main():
             molname += smiles2hash(smiles)
         else:
             molname += str(j)
+
+        if os.path.isfile(foldername + molname + "_0.sdf"):
+            print "already exists:", molname, smiles
+            quit()
 
         for k, m in enumerate(m_list):
 
