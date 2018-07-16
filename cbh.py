@@ -197,6 +197,34 @@ def get_components(smiles, smart, kekulize=True):
         n_atoms = mc.GetNumAtoms()
         n_bonds = len(mc.GetBonds())
 
+        component = Chem.MolToSmiles(mc)
+
+        if "H" in component:
+
+            # Very awful hack to fix the charged molecules and their explicit
+            # hydrogens
+
+            charges = np.zeros(n_atoms, dtype=int)
+
+            for idx in range(n_atoms):
+                atom = mc.GetAtomWithIdx(idx)
+                atom.SetNumExplicitHs(0)
+                charge = atom.GetFormalCharge()
+                charges[idx] = charge
+                atom.SetFormalCharge(0)
+
+            component = Chem.MolToSmiles(mc)
+            component = component.replace("[", "").replace("]","")
+
+            mc = Chem.MolFromSmiles(component)
+
+            for idx, charge in zip(range(n_atoms), charges):
+                atom = mc.GetAtomWithIdx(idx)
+                atom.SetFormalCharge(charge)
+
+            component = Chem.MolToSmiles(mc)
+
+
         if n_atoms <= n_bonds:
 
             mw = Chem.RWMol(m)
@@ -254,6 +282,9 @@ def get_components_scheme1(smiles, kekulize=True):
         pass
     else:
         return get_components(smiles, c1)
+
+    # The code below doesn't get charges
+    return get_components(smiles, c1)
 
     c1 = Chem.MolFromSmarts(c1)
     m = Chem.MolFromSmiles(smiles)
@@ -369,6 +400,16 @@ def get_components_scheme2(smiles, kekulize=True):
     components = [canonical(component) for component in components]
 
     return components
+
+
+def decompontent(smiles, scheme=1):
+
+    if scheme == 1: decompontent_scheme = decompontent_scheme1
+    elif scheme == 2: decompontent_scheme = decompontent_scheme2
+
+    left, right = decompontent_scheme(smiles)
+
+    return left, right
 
 
 def decompontent_scheme1(smiles):
