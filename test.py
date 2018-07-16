@@ -39,6 +39,20 @@ def test_split_smiles():
 
     return
 
+def test_decomponent():
+
+    difficult = "C=[NH+]C"
+    answer2 = ["C=[NH2+]", "C[NH3+]"]
+
+    difficult = "C#[N+]C"
+    answer2 = ["", ""]
+
+    smiles = "CC(=O)[O-]"
+    answer2 = [""]
+
+    return
+
+
 if __name__ == "__main__":
     test_split_smiles()
     test_fragmentation_cbh1()
