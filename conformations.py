@@ -6,6 +6,8 @@ from rdkit import Chem
 from rdkit.Chem import rdMolDescriptors
 from rdkit.Chem import AllChem
 
+import shell as sh
+import re
 
 def read_components(filename):
     smiles_list = []
@@ -13,6 +15,21 @@ def read_components(filename):
     for line in f:
         smiles_list.append(line.strip())
     return smiles_list
+
+
+def get_mopac_energy(filename):
+
+    regex = r'[\-]*\d+\.\d+[eE\-]*\d*'
+
+    try:
+        energy = sh.shell('grep "HEAT OF FORMATION" '+filename, shell=True)
+        energy = re.findall(regex, energy)
+        energy = energy[0] # kcal/mol
+        energy = float(energy)
+    except:
+        energy = float("nan")
+
+    return energy
 
 
 def smiles2hash(smiles):
@@ -40,6 +57,81 @@ def get_conformations(smiles, max_conf=20):
 
     return conf_list
 
+def generate_conformations(args):
+
+    smiles_list = read_components(args.filename)
+
+    for j, smiles in enumerate(smiles_list):
+        m_list = get_conformations(smiles)
+
+        molname = args.prefix
+
+        if args.md5:
+            molname += smiles2hash(smiles)
+        else:
+            molname += str(j)
+
+        if os.path.isfile(args.folder + molname + "_0.sdf"):
+            print "already exists:", molname, smiles
+            continue
+
+        for k, m in enumerate(m_list):
+
+            name = molname + "_" + str(k)
+            print name, smiles
+
+            writer = Chem.SDWriter(args.folder + name + ".sdf")
+            writer.write(m)
+
+    return
+
+
+def find_lowest(args):
+
+    f = open(args.filename, 'r')
+
+    data = {}
+
+    for line in f:
+        line = line.split()
+        molname = line[0]
+        smiles = line[1]
+
+        energy = get_mopac_energy(args.folder + molname + ".out")
+        key, idx = molname.split("_")
+
+        if key not in data:
+            data[key] = {}
+            data[key]['energy'] = energy
+            data[key]['idx'] = idx
+            data[key]['smiles'] = smiles
+
+        else:
+            if energy > data[key]['energy']:
+                data[key]['energy'] = energy
+                data[key]['idx'] = idx
+            else:
+                continue
+
+    keys = data.keys()
+    keys.sort()
+
+    for key in keys:
+        # cp sdf to new name
+        idx = data[key]['idx']
+        energy = data[key]['energy']
+        smiles = data[key]['smiles']
+
+        cmd = "cp {:} {:}".format(args.folder + key + "_" + idx + ".sdf", args.folder + "low/" + key + ".sdf")
+        sh.shell(cmd)
+
+        if np.isnan(energy):
+            print key, smiles, "nan"
+        else:
+            print key, smiles
+
+    return
+
 
 def main():
 
@@ -56,10 +148,12 @@ def main():
                     formatter_class=argparse.RawDescriptionHelpFormatter,
                     epilog=epilog)
 
-    parser.add_argument('-f', '--filename', type=str, help='Components list', metavar='file')
+    parser.add_argument('-f', '--filename', type=str, help='CSV file of either components or conformation list', metavar='file')
     parser.add_argument('-o', '--folder', type=str, default="", help='Output folder', metavar='str')
     parser.add_argument('-p', '--prefix', type=str, default="", help='String prefix on the conformations', metavar='str')
     parser.add_argument('-m', '--md5', action="store_true", help='Use MD5 of the SMILES string, instead of id')
+
+    parser.add_argument('-s', '--find_lowest', action="store_true", help='find lowest conformation from list (assumes MOPAC output)')
 
     args = parser.parse_args()
 
@@ -67,36 +161,17 @@ def main():
         parser.print_help()
         sys.exit(1)
 
-    foldername = args.folder
+    if args.folder != "":
+        if args.folder[-1] != "/":
+            args.folder += "/"
 
-    if foldername != "":
-        if foldername[-1] != "/":
-            foldername += "/"
+    #
 
+    if args.find_lowest:
+        find_lowest(args)
 
-    smiles_list = read_components(args.filename)
-
-    for j, smiles in enumerate(smiles_list):
-        m_list = get_conformations(smiles)
-
-        molname = args.prefix
-
-        if args.md5:
-            molname += smiles2hash(smiles)
-        else:
-            molname += str(j)
-
-        if os.path.isfile(foldername + molname + "_0.sdf"):
-            print "already exists:", molname, smiles
-            quit()
-
-        for k, m in enumerate(m_list):
-
-            name = molname + "_" + str(k)
-            print name, smiles
-
-            writer = Chem.SDWriter(foldername + name + ".sdf")
-            writer.write(m)
+    else:
+        generate_conformations(args)
 
     return
 
