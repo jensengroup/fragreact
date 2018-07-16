@@ -199,7 +199,7 @@ def get_components(smiles, smart, kekulize=True):
 
         component = Chem.MolToSmiles(mc)
 
-        if "H" in component:
+        if "+" in component or "-" in component:
 
             # Very awful hack to fix the charged molecules and their explicit
             # hydrogens
@@ -213,7 +213,7 @@ def get_components(smiles, smart, kekulize=True):
                 charges[idx] = charge
                 atom.SetFormalCharge(0)
 
-            component = Chem.MolToSmiles(mc)
+            component = Chem.MolToSmiles(mc, canonical=False)
             component = component.replace("[", "").replace("]","")
 
             mc = Chem.MolFromSmiles(component)
