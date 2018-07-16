@@ -87,11 +87,13 @@ def main():
                     print cbh.print_reaction(left, right, human=args.human)
 
     elif args.decomponent:
-        for smiles in args.decomponent:
-            left, right = cbh.decompontent(smiles, scheme=args.scheme)
-            print smiles
-            print " ", " ".join(left)
-            print " ", " ".join(right)
+        for smiles_list in args.decomponent:
+            smiles_list = smiles_list.split(".")
+            for smiles in smiles_list:
+                print smiles
+                left, right = cbh.decompontent(smiles, scheme=args.scheme)
+                print " ", " ".join(left)
+                print " ", " ".join(right)
 
 
     if args.save_database:
