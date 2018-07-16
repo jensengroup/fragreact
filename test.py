@@ -50,6 +50,8 @@ def test_decomponent():
     smiles = "CC(=O)[O-]"
     answer2 = [""]
 
+    smiles = "C[S+](C)C"
+
     return
 
 
