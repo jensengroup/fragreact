@@ -77,7 +77,20 @@ def main():
                     reactants = line[1].split(".")
                     products = line[2].split(".")
 
+
+
+                # if True:
+                #     reactants, products = cbh.substract_smiles(reactants, products)
+                #     print reactants
+                #     print products
+                #     print
+
+
                 left, right = cbh.cbh_n(reactants, products, args.scheme)
+
+                # print name, "test",
+                # print cbh.check_reaction(left, right),
+                # print cbh.check_reaction(reactants, products)
 
 
                 if args.save_database:

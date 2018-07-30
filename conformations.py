@@ -72,7 +72,7 @@ def generate_conformations(args):
             molname += str(j)
 
         if os.path.isfile(args.folder + molname + "_0.sdf"):
-            print "already exists:", molname, smiles
+            print molname, smiles
             continue
 
         for k, m in enumerate(m_list):
@@ -86,32 +86,63 @@ def generate_conformations(args):
     return
 
 
+def find_all_in_folder(folder, srch):
+
+    print srch
+
+    files = [f for f in os.listdir(folder) if re.match(srch, f)]
+    files = [f for f in files if "out" in f]
+    files.sort()
+
+    return files
+
+
+def already_found_low(folder):
+
+    files = os.listdir(folder)
+    files = [f.replace(".sdf", "") for f in files]
+
+    return files
+
+
 def find_lowest(args):
 
     f = open(args.filename, 'r')
+
+    # already in low folder
+    lowfldr = already_found_low(args.folder + "low")
+
 
     data = {}
 
     for line in f:
         line = line.split()
-        molname = line[0]
+        key = line[0]
         smiles = line[1]
 
-        energy = get_mopac_energy(args.folder + molname + ".out")
-        key, idx = molname.split("_")
+        if key in lowfldr: continue
 
-        if key not in data:
-            data[key] = {}
-            data[key]['energy'] = energy
-            data[key]['idx'] = idx
-            data[key]['smiles'] = smiles
+        # find all out files
+        files = find_all_in_folder(args.folder, key)
+        files = [f.replace(".out", "") for f in files]
 
-        else:
-            if energy > data[key]['energy']:
+        for molname in files:
+
+            energy = get_mopac_energy(args.folder + molname + ".out")
+            key, idx = molname.split("_")
+
+            if key not in data:
+                data[key] = {}
                 data[key]['energy'] = energy
                 data[key]['idx'] = idx
+                data[key]['smiles'] = smiles
+
             else:
-                continue
+                if energy > data[key]['energy']:
+                    data[key]['energy'] = energy
+                    data[key]['idx'] = idx
+                else:
+                    continue
 
     keys = data.keys()
     keys.sort()

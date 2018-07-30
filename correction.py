@@ -49,6 +49,8 @@ def get_energy_smiles(smi, idx, DB, debug=False):
 
 def get_energy_rxn(rxnsmi, idx_reference, idx_methods, DB, debug=False):
 
+    if rxnsmi == ">>": return 0.0
+
     # reaction
     rxnsmi = rxnsmi.split(">>")
     rxnsmi = [rxn.split(".") for rxn in rxnsmi]

@@ -52,6 +52,8 @@ def test_decomponent():
 
     smiles = "C[S+](C)C"
 
+    smiles = "CCc1c[nH]c2ccccc12" # getting the right number of H on N
+
     return
 
 

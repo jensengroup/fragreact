@@ -199,7 +199,7 @@ def get_components(smiles, smart, kekulize=True):
 
         component = Chem.MolToSmiles(mc)
 
-        if "+" in component or "-" in component:
+        if "+" in component or "-" in component or "H" in component:
 
             # Very awful hack to fix the charged molecules and their explicit
             # hydrogens
@@ -513,6 +513,16 @@ def resultant(reactants, products, scheme=1):
         products_leftside += left
         products_rightside += right
 
+    # print reactants_leftside
+    # print reactants_rightside
+    # print reactants_missing
+    #
+    # print check_reaction(reactants_leftside, reactants_rightside)
+    #
+    # print
+    # print products_leftside, products_rightside
+    # print check_reaction(products_leftside, products_rightside)
+
     left_positive, left_negative = substract_smiles(products_leftside, reactants_leftside)
     right_positive, right_negative = substract_smiles(products_rightside, reactants_rightside)
 
@@ -585,6 +595,10 @@ def check_reaction(reactants, products):
 
     ratoms = [get_atoms(smiles) for smiles in reactants]
     patoms = [get_atoms(smiles) for smiles in products]
+
+    # flatten
+    ratoms = sum(ratoms, [])
+    patoms = sum(patoms, [])
 
     ratoms.sort()
     patoms.sort()
