@@ -45,7 +45,7 @@ def test_get_components_scheme1():
     smiles = "C=[NH+]C"
     components = ["C=[NH2+]", "C[NH3+]"]
     output = cbh.get_components_scheme1("C=[NH+]C")
-    assert checkListEqual(components, output)
+    assert sorted(components) == sorted(output)
 
     smiles = "C#[N+]C"
     components = ["C#[NH+]", "C[NH3+]"]
