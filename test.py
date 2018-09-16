@@ -39,28 +39,50 @@ def test_split_smiles():
 
     return
 
-def test_decomponent():
 
-    difficult = "C=[NH+]C"
-    answer2 = ["C=[NH2+]", "C[NH3+]"]
+def test_get_components_scheme1():
 
-    difficult = "C#[N+]C"
-    answer2 = ["", ""]
+    smiles = "C=[NH+]C"
+    components = ["C=[NH2+]", "C[NH3+]"]
+    output = cbh.get_components_scheme1("C=[NH+]C")
+    assert checkListEqual(components, output)
+
+    smiles = "C#[N+]C"
+    components = ["C#[NH+]", "C[NH3+]"]
+    output = cbh.get_components_scheme1(smiles)
+    assert sorted(components) == sorted(output)
 
     smiles = "CC(=O)[O-]"
-    answer2 = [""]
+    components = ["CC", "C=O", "C[O-]"]
+    output = cbh.get_components_scheme1(smiles)
+    assert sorted(components) == sorted(output)
 
     smiles = "C[S+](C)C"
+    components = ['C[SH2+]', 'C[SH2+]', 'C[SH2+]']
+    output = cbh.get_components_scheme1(smiles)
+    assert sorted(components) == sorted(output)
 
-    smiles = "CCc1c[nH]c2ccccc12" # getting the right number of H on N
+    return
+
+def test_get_components_scheme2():
+
+    fun = cbh.get_components_scheme2
+
+    # getting the right number of H on N
+    smiles = "CCc1c[nH]c2ccccc12"
+    components = ['CCC', 'C=CN', 'CNC', 'C=CC', 'C=CC', 'C=CC', 'C=CC', 'C=C(C)C', 'C=C(C)C', 'C=C(C)N']
+    output = fun(smiles)
+    assert sorted(components) == sorted(output)
+
+    # connected smiles
+    smiles = "C1CO1"
+    components = ['CCO', 'CCO', 'COC']
+    output = fun(smiles)
+    assert sorted(components) == sorted(output)
 
     return
 
 
 if __name__ == "__main__":
-    test_split_smiles()
-    test_fragmentation_cbh1()
-    test_fragmentation_cbh2()
-    test_fragmentation_reaction_cbh1()
-    test_fragmentation_reaction_cbh2()
+    print("use python3 -m pytest test.py")
 

@@ -3,6 +3,10 @@
 import numpy as np
 import re
 from rdkit import Chem
+from rdkit.Chem import rdMolDescriptors
+
+from itertools import combinations
+import copy
 
 def print_smiles(smiles_list, human=False):
 
@@ -47,6 +51,20 @@ def kekulize(smiles):
     smiles = Chem.MolToSmiles(m, kekuleSmiles=True)
     return smiles
 
+def count_hydrogens(smiles):
+    """ """
+    m = Chem.MolFromSmiles(smiles)
+
+    n_hydrogen = 0
+
+    for a in m.GetAtoms():
+        n_hydrogen += a.GetTotalNumHs()
+        # print a.GetAtomicNum()
+        # print a.GetTotalNumHs()
+        # print a.GetNumExplicitHs()
+        # print a.GetNumImplicitHs()
+
+    return n_hydrogen
 
 def count_smiles(smiles_list):
     """
@@ -75,11 +93,14 @@ def substract_smiles(A, B):
     and Cn has negative results
 
     """
+    if isinstance(A, str): A = A.split(".")
+    if isinstance(B, str): B = B.split(".")
+
     Cp = []
     Cn = []
     A = count_smiles(A)
     B = count_smiles(B)
-    for key in np.unique(A.keys() + B.keys()):
+    for key in np.unique(list(A.keys()) + list(B.keys())):
 
         if key not in A:
             Cn += [key] * B[key]
@@ -109,7 +130,7 @@ def tuning(left_side, right_side):
     left_side = count_smiles(left_side)
     right_side = count_smiles(right_side)
 
-    for key in np.unique(left_side.keys() + right_side.keys()):
+    for key in np.unique(list(left_side.keys()) + list(right_side.keys())):
 
         if key not in left_side:
             print("hello")
@@ -173,7 +194,39 @@ def get_atoms(smiles, ignore_hydrogen=True):
     return atoms
 
 
-def get_components(smiles, smart, kekulize=True):
+def add_neighbours(mol, substructures):
+
+    substructures = list(substructures)
+
+    for j, idx in enumerate(substructures):
+        for i in idx:
+            A = mol.GetAtomWithIdx(i)
+            for B in A.GetNeighbors():
+                k = B.GetIdx()
+                substructures[j] += (k,)
+
+    return substructures
+
+
+def get_components_neighbors(mol, atoms):
+
+    atoms = list(atoms)
+
+    for idx in atoms:
+        idx, = idx
+        A = mol.GetAtomWithIdx(idx)
+
+        for B in A.GetNeighbors():
+
+            idx_b = B.GetIdx()
+            atom = B.GetAtomicNum()
+            charge = B.GetFormalCharge()
+            bond = Chem.GetBondBetweenAtoms(mol, idx, idx_b)
+
+    return
+
+
+def get_components(smiles, smart, kekulize=True, add=False):
 
     m = Chem.MolFromSmiles(smiles)
     smart = Chem.MolFromSmarts(smart)
@@ -185,15 +238,32 @@ def get_components(smiles, smart, kekulize=True):
 
     components = []
 
+    if add:
+        substructures = add_neighbours(m, substructures)
+
+
     for sub in substructures:
 
-        component = Chem.MolFragmentToSmiles(m,
+
+        if add:
+            m_new = copy.copy(m)
+            m_new = Chem.RWMol(m_new)
+
+            for B, C in combinations(sub[1:], 2):
+                m_new.RemoveBond(B, C)
+        else:
+            m_new = m
+
+        component = Chem.MolFragmentToSmiles(m_new,
             atomsToUse=sub,
             isomericSmiles=True,
             kekuleSmiles=True,
             canonical=True)
 
+        A = m.GetAtomWithIdx(sub[0])
+
         mc = Chem.MolFromSmiles(component)
+
         n_atoms = mc.GetNumAtoms()
         n_bonds = len(mc.GetBonds())
 
@@ -220,6 +290,7 @@ def get_components(smiles, smart, kekulize=True):
 
             for idx, charge in zip(range(n_atoms), charges):
                 atom = mc.GetAtomWithIdx(idx)
+                charge = int(charge)
                 atom.SetFormalCharge(charge)
 
             component = Chem.MolToSmiles(mc)
@@ -239,12 +310,10 @@ def get_components(smiles, smart, kekulize=True):
                         mw.RemoveBond(sub[i], sub[j])
 
             component = Chem.MolFragmentToSmiles(mw,
-                    atomsToUse=sub,
-                    isomericSmiles=True,
-                    kekuleSmiles=True,
-                    canonical=True)
-
-            # print(sub, Chem.MolToSmiles(mc), component)
+                atomsToUse=sub,
+                isomericSmiles=True,
+                kekuleSmiles=True,
+                canonical=True)
 
             if "1" in component:
                 quit("Error connectivity")
@@ -315,6 +384,7 @@ def get_components_scheme1(smiles, kekulize=True):
 
 def get_components_scheme2(smiles, kekulize=True):
 
+    c1 = "[D2]"
     c2 = "[*]~[D2]~[*]"
     c3 = "[*]~[D3](~[*])~[*]"
     c4 = "[*]~[*](~[*])(~[*])~[*]"
@@ -323,9 +393,11 @@ def get_components_scheme2(smiles, kekulize=True):
     #     pass
     # else:
     components = []
-    components += get_components(smiles, c2)
+    components += get_components(smiles, c1, add=True)
+    # components += get_components(smiles, c2)
     components += get_components(smiles, c3)
     components += get_components(smiles, c4)
+
     return components
 
     c2 = Chem.MolFromSmarts(c2)
@@ -473,6 +545,12 @@ def decompontent_scheme2(smiles):
 
     right += components
 
+    if not check_atoms([smiles] + left, right):
+        print("Error in fragreact tuneing:", smiles)
+        print([smiles], left, right)
+        quit()
+
+
     return left, right
 
 
@@ -513,16 +591,6 @@ def resultant(reactants, products, scheme=1):
         products_leftside += left
         products_rightside += right
 
-    # print reactants_leftside
-    # print reactants_rightside
-    # print reactants_missing
-    #
-    # print check_reaction(reactants_leftside, reactants_rightside)
-    #
-    # print
-    # print products_leftside, products_rightside
-    # print check_reaction(products_leftside, products_rightside)
-
     left_positive, left_negative = substract_smiles(products_leftside, reactants_leftside)
     right_positive, right_negative = substract_smiles(products_rightside, reactants_rightside)
 
@@ -530,6 +598,23 @@ def resultant(reactants, products, scheme=1):
     right = right_positive + left_negative + products_missing
 
     left, right = substract_smiles(left, right)
+
+    hydrogens_left = 0
+    hydrogens_right = 0
+
+    for each in left:
+        hydrogens_left += count_hydrogens(each)
+
+    for each in right:
+        hydrogens_right += count_hydrogens(each)
+
+    tune_hydrogens = hydrogens_left - hydrogens_right
+
+    if tune_hydrogens < 0:
+        left += ['[H+]']*abs(tune_hydrogens)
+
+    if tune_hydrogens > 0:
+        right += ['[H+]']*tune_hydrogens
 
     return left, right
 
@@ -585,7 +670,7 @@ def cbh_n(reactants, products, scheme, do_canonical=True):
     return left, right
 
 
-def check_reaction(reactants, products):
+def check_atoms(reactants, products):
     """
     Check the validity of the reaction.
 
@@ -605,8 +690,15 @@ def check_reaction(reactants, products):
 
     return ratoms == patoms
 
+def check_reaction(reactants, products):
+    """
+    """
+    if isinstance(reactants, list): reactants = ".".join(reactants)
+    if isinstance(products, list): products = ".".join(products)
 
-if __name__ == "__main__":
+    reactants = Chem.MolFromSmiles(reactants)
+    products = Chem.MolFromSmiles(products)
+    return rdMolDescriptors.CalcMolFormula(reactants) == rdMolDescriptors.CalcMolFormula(products)
 
-    import argparse
+
 

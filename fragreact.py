@@ -51,7 +51,7 @@ def main():
         if args.save_database:
             components += left + right
         else:
-            print cbh.print_reaction(left, right, human=args.human)
+            print(cbh.print_reaction(left, right, human=args.human))
 
 
     elif args.reactants:
@@ -77,41 +77,27 @@ def main():
                     reactants = line[1].split(".")
                     products = line[2].split(".")
 
-
-
-                # if True:
-                #     reactants, products = cbh.substract_smiles(reactants, products)
-                #     print reactants
-                #     print products
-                #     print
-
-
                 left, right = cbh.cbh_n(reactants, products, args.scheme)
-
-                # print name, "test",
-                # print cbh.check_reaction(left, right),
-                # print cbh.check_reaction(reactants, products)
-
 
                 if args.save_database:
                     components += left + right
                 else:
-                    print name,
-                    print cbh.print_reaction(left, right, human=args.human)
+                    print(name,)
+                    print(cbh.print_reaction(left, right, human=args.human))
 
     elif args.decomponent:
         for smiles_list in args.decomponent:
             smiles_list = smiles_list.split(".")
             for smiles in smiles_list:
-                print smiles
+                print(smiles)
                 left, right = cbh.decompontent(smiles, scheme=args.scheme)
-                print " ", " ".join(left)
-                print " ", " ".join(right)
+                print(" ", " ".join(left))
+                print(" ", " ".join(right))
 
 
     if args.save_database:
         for comp in np.unique(components):
-            print comp
+            print(comp)
 
 
 
