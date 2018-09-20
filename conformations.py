@@ -23,6 +23,7 @@ def get_mopac_energy(filename):
 
     try:
         energy = sh.shell('grep "HEAT OF FORMATION" '+filename, shell=True)
+        energy = energy.decode('UTF-8')
         energy = re.findall(regex, energy)
         energy = energy[0] # kcal/mol
         energy = float(energy)
@@ -72,13 +73,13 @@ def generate_conformations(args):
             molname += str(j)
 
         if os.path.isfile(args.folder + molname + "_0.sdf"):
-            print molname, smiles
+            print(molname, smiles)
             continue
 
         for k, m in enumerate(m_list):
 
             name = molname + "_" + str(k)
-            print name, smiles
+            print(name, smiles)
 
             writer = Chem.SDWriter(args.folder + name + ".sdf")
             writer.write(m)
@@ -88,7 +89,6 @@ def generate_conformations(args):
 
 def find_all_in_folder(folder, srch):
 
-    print srch
 
     files = [f for f in os.listdir(folder) if re.match(srch, f)]
     files = [f for f in files if "out" in f]
@@ -145,6 +145,7 @@ def find_lowest(args):
                     continue
 
     keys = data.keys()
+    keys = list(keys)
     keys.sort()
 
     for key in keys:
@@ -157,9 +158,9 @@ def find_lowest(args):
         sh.shell(cmd)
 
         if np.isnan(energy):
-            print key, smiles, "nan"
+            print(key, smiles, "nan")
         else:
-            print key, smiles
+            print(key, smiles)
 
     return
 
