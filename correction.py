@@ -18,7 +18,7 @@ def get_database(filename):
 
     f = open(filename, 'r')
 
-    header = f.next()
+    header = next(f)
     header = header.split(", ")
     header = [head.strip() for head in header]
 
@@ -38,11 +38,17 @@ def get_database(filename):
 
 def get_energy_smiles(smi, idx, DB, debug=False):
 
-    energy = DB[smi][idx]
+    R = 1.9872036 * 10**-3 # kcal K−1 mol−1
+    T = 298.0
 
-    if debug:
-        if np.isnan(energy):
-            print "  ", smi, energy
+    if smi == "[H+]":
+        energy = 2.5 * R * T
+    else:
+        energy = DB[smi][idx]
+
+        if debug:
+            if np.isnan(energy):
+                print("  ", smi, energy)
 
     return energy
 
@@ -73,6 +79,11 @@ def get_energy_rxn(rxnsmi, idx_reference, idx_methods, DB, debug=False):
 
 if __name__ == "__main__":
 
+    """
+    enthalpi(H+) = 2.5RT
+
+    """
+
     import argparse
 
     parser = argparse.ArgumentParser()
@@ -100,9 +111,9 @@ if __name__ == "__main__":
         with open(args.filename, 'r') as f:
             for line in f:
                 name, rxnsmi = line.split()
-                print name, get_energy_rxn(rxnsmi, idx_reference, idx_methods, DB, debug=DEBUG)
+                print(name, get_energy_rxn(rxnsmi, idx_reference, idx_methods, DB, debug=DEBUG))
 
     if args.scheme:
-        print get_energy(args.scheme, idx_reference, idx_methods, DB)
+        print(get_energy(args.scheme, idx_reference, idx_methods, DB))
 
 
