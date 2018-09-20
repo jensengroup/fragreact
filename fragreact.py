@@ -82,8 +82,7 @@ def main():
                 if args.save_database:
                     components += left + right
                 else:
-                    print(name,)
-                    print(cbh.print_reaction(left, right, human=args.human))
+                    print(name, cbh.print_reaction(left, right, human=args.human))
 
     elif args.decomponent:
         for smiles_list in args.decomponent:
